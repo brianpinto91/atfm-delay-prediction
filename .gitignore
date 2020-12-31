@@ -1,0 +1,5 @@
+training/data/NMIR/*
+*.pyc
+__pycache__
+.ipynb_checkpoints
+temp.ipynb
