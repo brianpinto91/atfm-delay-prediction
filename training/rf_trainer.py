@@ -6,6 +6,10 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 import utils
 from numpy.random import seed
+import os
+import time
+import joblib
+import json
 
 RANDOM_STATE = 42
 seed(RANDOM_STATE)
@@ -119,6 +123,14 @@ def perform_grid_search(X_train, y_train, n_folds_cv, random_state):
     rf_model = grid_search.best_estimator_.fit(X_train, y_train)
     return rf_model
 
+def save_rf_model(rf_model, savepath):
+    joblib.dump(rf_model, os.path.join(savepath, 'rf_model.save'))
+
+def save_rf_model_metadata(rf_model, savepath):
+    metadata_save_path = os.path.join(savepath, "rf_model_metadata.json")
+    with open(metadata_save_path, 'w') as outfile:
+        json.dump(rf_model.get_params(), outfile)
+
 def train(target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
     '''Function to train a RF model. The hyperparameters are tuned using gridsearch if enabled
     '''
@@ -139,16 +151,25 @@ def train(target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
     if rf_parameters:
         print("Training RF regressor with the passed hyper-parameters.....", flush=True)
         rf_model = train_custom_rf_model(X_train, y_train, random_state=RANDOM_STATE, **rf_parameters)
-        y_pred_train = rf_model.predict(X_train)
-        y_pred_test = rf_model.predict(X_test)
-        utils.print_metrics(y_train, y_pred_train, y_test, y_pred_test)
     else:
         print("Performing grid search to find the best hyper-parameters.....", flush=True)
         rf_model = perform_grid_search(X_train, y_train, n_folds_cv, random_state=RANDOM_STATE)
-        y_pred_train = rf_model.predict(X_train)
-        y_pred_test = rf_model.predict(X_test)
-        utils.print_metrics(y_train, y_pred_train, y_test, y_pred_test)
+    
+    y_pred_train = rf_model.predict(X_train)
+    y_pred_test = rf_model.predict(X_test)
+    utils.print_metrics(y_train, y_pred_train, y_test, y_pred_test, target)
 
+    print("Saving training results, metadata, and the model", flush=True)
+    cur_dir = os.getcwd()
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    save_dir = os.path.join(cur_dir, 'output', 'RF_' + timestr)
+    os.makedirs(save_dir)
+    utils.save_line_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
+    utils.save_scatter_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
+    utils.save_predictions(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
+    save_rf_model(rf_model, save_dir)
+    save_rf_model_metadata(rf_model, save_dir)
+    
 if __name__ == "__main__":
     args = vars(get_args())
     rf_parameters = {}

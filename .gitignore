@@ -3,3 +3,4 @@ training/data/NMIR/*
 __pycache__
 .ipynb_checkpoints
 temp.ipynb
+training/output/*

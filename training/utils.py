@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+import matplotlib.pyplot as plt
+import os
 
 # Import the database for AIRACs
 AIRAC_DF = pd.read_csv('data/AIRAC_dates.csv')
@@ -156,7 +158,8 @@ def get_MAPE(y_act, y_pred):
     mape = abs_per_err.mean()
     return mape
 
-def print_metrics(y_act_train, y_pred_train, y_act_test, y_pred_test):
+def print_metrics(y_act_train, y_pred_train, y_act_test, y_pred_test, target):
+    print('-----' + 'Results: ' + target + '-----')
     print('------Training Metrics------')
     print('R_squared:', r2_score(y_act_train,y_pred_train))
     print('Error % (abs):', get_MAPE(y_act_train,y_pred_train))
@@ -171,12 +174,57 @@ def print_metrics(y_act_train, y_pred_train, y_act_test, y_pred_test):
 def print_metrics_detailed(y_act_train, y_pred_train, y_act_test, y_pred_test):
     pass
 
-def save_line_plots(y_act, y_pred, title, axis_label):
-    pass
+def save_line_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+    fig, ax = plt.subplots(2, 1, sharex = False, figsize=(15,8))
+    fig.subplots_adjust(hspace=.4)
+    ax[0].plot(range(0, len(y_act_train), 1), y_act_train, range(0, len(y_act_train), 1), y_pred_train)
+    ax[0].set_title('Training set results: ' + target)
+    ax[0].legend(['Actual','Prediction'])
+    ax[0].set_xlabel('days (unordered)')
+    ax[1].plot(range(0, len(y_act_test), 1), y_act_test, range(0, len(y_act_test), 1), y_pred_test)
+    ax[1].set_title('Testing set results: ' + target)
+    ax[1].legend(['Actual','Prediction'])
+    ax[1].set_xlabel('days (unordered)')
+    ax[1].set_ylabel('ATFM Delay (min)')
+    if target == 'delay':
+        ax[0].set_ylabel('delay (min)')
+        ax[1].set_ylabel('delay (min)')
+    else:
+        ax[0].set_ylabel('delayed traffic (flights)')
+        ax[1].set_ylabel('delayed traffic (flights)')
+    plt.savefig(os.path.join(savepath, "lineplot.png"), bbox_inches='tight')
 
-def save_scatter_plots(y_act, y_pred, title, axis_label):
-    pass
+def save_scatter_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+    fig, ax = plt.subplots(2, 1, sharex = True, figsize=(8,8))
+    fig.subplots_adjust(hspace=.3)
+    max_value = np.max(np.concatenate((y_act_train, y_pred_train, y_act_test, y_pred_test), axis=0))
+    scatter_limit = int(max_value + 0.1 * max_value)
+    ax[0].plot(range(0, scatter_limit, 1),range(0, scatter_limit, 1), color='red')
+    ax[0].scatter(y_act_train, y_pred_train,alpha=0.5)
+    ax[0].set_title('Training set results: ' + target)
+    ax[0].legend(['Target','Prediction'])
+    ax[0].set_xlabel('Actual ATFM Delay (min)')
+    ax[1].plot(range(0, scatter_limit, 1),range(0, scatter_limit, 1), color='red')
+    ax[1].scatter(y_act_test, y_pred_test, alpha=0.5)
+    ax[1].set_title('Testing set results: ' + target)
+    ax[1].legend(['Target','Prediction'])
+    ax[1].set_xlabel('Actual ATFM Delay (min)')
+    if target == 'delay':
+        ax[0].set_ylabel('delay (min)')
+        ax[1].set_ylabel('delay (min)')
+    else:
+        ax[0].set_ylabel('delayed traffic (flights)')
+        ax[1].set_ylabel('delayed traffic (flights)')
+    plt.savefig(os.path.join(savepath, "scatterplot.png"), bbox_inches='tight')
 
-def save_predictions(y_act, y_pred, filename_prefix):
-    pass
+def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+    header = ['actual', 'prediction']
+    y_act_train = np.array(y_act_train).reshape(-1,1)
+    y_pred_train = np.array(y_pred_train).reshape(-1,1)
+    y_act_test = np.array(y_act_test).reshape(-1,1)
+    y_pred_test = np.array(y_pred_test).reshape(-1,1)
+    train_result = pd.DataFrame(np.concatenate((y_act_train, y_pred_train), axis=1), columns = header)
+    test_result = pd.DataFrame(np.concatenate((y_act_test, y_pred_test), axis=1), columns = header)
+    train_result.to_csv(os.path.join(savepath, target + "_" + "train_results.csv"))
+    test_result.to_csv(os.path.join(savepath, target + "_" + "test_results.csv"))
 
