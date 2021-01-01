@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 # Import the database for AIRACs
 AIRAC_DF = pd.read_csv('data/AIRAC_dates.csv')
@@ -156,7 +157,16 @@ def get_MAPE(y_act, y_pred):
     return mape
 
 def print_metrics(y_act_train, y_pred_train, y_act_test, y_pred_test):
-    pass
+    print('------Training Metrics------')
+    print('R_squared:', r2_score(y_act_train,y_pred_train))
+    print('Error % (abs):', get_MAPE(y_act_train,y_pred_train))
+    print('MAE:', mean_absolute_error(y_act_train,y_pred_train))
+    print('RMSE:', np.sqrt(mean_squared_error(y_act_train,y_pred_train)))
+    print('------Testing Metrics------')
+    print('R_squared:', r2_score(y_act_test,y_pred_test))
+    print('Error % (abs):', get_MAPE(y_act_test,y_pred_test))
+    print('MAE:', mean_absolute_error(y_act_test,y_pred_test))
+    print('RMSE:', np.sqrt(mean_squared_error(y_act_test,y_pred_test)))
 
 def print_metrics_detailed(y_act_train, y_pred_train, y_act_test, y_pred_test):
     pass
