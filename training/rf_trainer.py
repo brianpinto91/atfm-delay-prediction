@@ -37,6 +37,14 @@ def get_args():
         metavar='L',
         help="the label for training which can be either delay or delayed_traffic"
     )
+
+    parser.add_argument(
+        '--nmir_files',
+        type=str,
+        nargs='*',
+        metavar='F',
+        help="pass filenames containing NMIR data for training, each seperated by space"
+    )
     parser.add_argument(
         '--test_size',
         type=float,
@@ -55,7 +63,7 @@ def get_args():
         '--custom_parameters',
         action='store_true',
         default=False,
-        help="fraction of dataset to be used for testing"
+        help="use this option to when you want to manually define hyperparameters for the model"
     )
     parser.add_argument(
         '--n_estimators',
@@ -131,13 +139,15 @@ def save_rf_model_metadata(rf_model, savepath):
     with open(metadata_save_path, 'w') as outfile:
         json.dump(rf_model.get_params(), outfile)
 
-def train(target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
+def train(train_filenames, target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
     '''Function to train a RF model. The hyperparameters are tuned using gridsearch if enabled
     '''
     print("Reading the raw data.....", flush=True)
-    raw_df_17 = pd.read_csv('data/NMIR/NMIR_2017.csv')
-    raw_df_18 = pd.read_csv('data/NMIR/NMIR_2018.csv')
-    raw_df = pd.concat((raw_df_17, raw_df_18), axis=0).reset_index(drop=True)
+    raw_df = pd.read_csv(os.path.join(utils.NMIR_DATA_DIR, train_filenames[0]))
+    for f in range(1, len(train_filenames), 1):
+        join_df = pd.read_csv(os.path.join(utils.NMIR_DATA_DIR, train_filenames[f]))
+        raw_df = pd.concat((raw_df, join_df), axis=0).reset_index(drop=True)
+
     print("Transforming the data.....", flush=True)
     daywise = utils.transform_to_daywise_basic(raw_df)
     X = daywise.drop(columns=['Date', 'ATFM Delay (min)', 'MP Delayed Traffic'])
@@ -172,11 +182,13 @@ def train(target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
     
 if __name__ == "__main__":
     args = vars(get_args())
+    if args['nmir_files'] is None:
+        raise FileNotFoundError("Please pass the names of the NMIR files that are to be used for training")
     rf_parameters = {}
     for par in ['n_estimators', 'max_features', 'max_depth', 'bootstrap']:
         if args[par]:
             rf_parameters[par] = args[par]
     if args['custom_parameters']:
-        train(target=args['target'], test_size=args['test_size'], **rf_parameters)
+        train(train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], **rf_parameters)
     else:
-        train(target=args['target'], test_size=args['test_size'], n_folds_cv=args['n_folds_cv'])
+        train(train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], n_folds_cv=args['n_folds_cv'])

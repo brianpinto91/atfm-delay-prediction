@@ -5,6 +5,9 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 import os
 
+# data directory containing the raw NMIR files
+NMIR_DATA_DIR = "data/NMIR"
+
 # Import the database for AIRACs
 AIRAC_DF = pd.read_csv('data/AIRAC_dates.csv')
 AIRAC_DF['start_date'] = pd.to_datetime(AIRAC_DF['start_date'])
