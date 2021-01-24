@@ -70,7 +70,7 @@ def get_regulation_count(day_df):
     for rt in REGULATION_TYPES:
         try:
             reg_count = day_df['Regulation Reason Name'].value_counts()[rt]
-        except:
+        except KeyError:
             reg_count = 0
         reg_counts_list.append(reg_count)
     return reg_counts_list
@@ -230,4 +230,3 @@ def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target,
     test_result = pd.DataFrame(np.concatenate((y_act_test, y_pred_test), axis=1), columns = header)
     train_result.to_csv(os.path.join(savepath, target + "_" + "train_results.csv"))
     test_result.to_csv(os.path.join(savepath, target + "_" + "test_results.csv"))
-
