@@ -172,13 +172,15 @@ def train(train_filenames, target='delay', test_size=0.3, n_folds_cv=10, **rf_pa
     print("Saving training results, metadata, and the model", flush=True)
     cur_dir = os.getcwd()
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    save_dir = os.path.join(cur_dir, 'output', 'RF_' + timestr)
-    os.makedirs(save_dir)
-    utils.save_line_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
-    utils.save_scatter_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
-    utils.save_predictions(y_train, y_pred_train, y_test, y_pred_test, target, save_dir)
-    save_rf_model(rf_model, save_dir)
-    save_rf_model_metadata(rf_model, save_dir)
+    job_dir = 'RF_' + timestr
+    save_path = os.path.join(cur_dir, 'output', job_dir)
+    os.makedirs(save_path)
+    utils.save_line_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
+    utils.save_scatter_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
+    utils.save_predictions(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
+    save_rf_model(rf_model, save_path)
+    save_rf_model_metadata(rf_model, save_path)
+    utils.register_job_log(job_dir, y_train, y_pred_train, y_test, y_pred_test)
     
 if __name__ == "__main__":
     args = vars(get_args())

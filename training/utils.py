@@ -4,6 +4,7 @@ import datetime as dt
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 import os
+import logging
 
 # data directory containing the raw NMIR files
 NMIR_DATA_DIR = "data/NMIR"
@@ -230,3 +231,17 @@ def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target,
     test_result = pd.DataFrame(np.concatenate((y_act_test, y_pred_test), axis=1), columns = header)
     train_result.to_csv(os.path.join(savepath, target + "_" + "train_results.csv"))
     test_result.to_csv(os.path.join(savepath, target + "_" + "test_results.csv"))
+
+def register_job_log(job_dir, y_train, y_pred_train, y_test, y_pred_test):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(message)s")
+    file_handler = logging.FileHandler('output/jobs_registry.log')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    train_MAPE = get_MAPE(y_train, y_pred_train)
+    train_MAPE = str(round(train_MAPE, 2))
+    test_MAPE = get_MAPE(y_test, y_pred_test)
+    test_MAPE = str(round(test_MAPE, 2))
+    log_msg = job_dir + " :: " + "train_MAPE" + " :: " + train_MAPE + " :: " + "test_MAPE" + " :: " + test_MAPE
+    logger.info(log_msg)
