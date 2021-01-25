@@ -226,7 +226,6 @@ def save_line_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, 
     ax[1].set_title('Testing set results: ' + target)
     ax[1].legend(['Actual','Prediction'])
     ax[1].set_xlabel('days (unordered)')
-    ax[1].set_ylabel('ATFM Delay (min)')
     if target == 'delay':
         ax[0].set_ylabel('delay (min)')
         ax[1].set_ylabel('delay (min)')
@@ -244,18 +243,18 @@ def save_scatter_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, targe
     ax[0].scatter(y_act_train, y_pred_train, alpha=0.5)
     ax[0].set_title('Training set results: ' + target)
     ax[0].legend(['Target','Prediction'])
-    ax[0].set_xlabel('Actual ATFM Delay (min)')
+    ax[0].set_xlabel('actual delay (min)')
     ax[1].plot(range(0, scatter_limit, 1),range(0, scatter_limit, 1), color='red')
     ax[1].scatter(y_act_test, y_pred_test, alpha=0.5)
     ax[1].set_title('Testing set results: ' + target)
     ax[1].legend(['Target','Prediction'])
-    ax[1].set_xlabel('Actual ATFM Delay (min)')
+    ax[1].set_xlabel('actual delay (min)')
     if target == 'delay':
-        ax[0].set_ylabel('delay (min)')
-        ax[1].set_ylabel('delay (min)')
+        ax[0].set_ylabel('predicted delay (min)')
+        ax[1].set_ylabel('predicted delay (min)')
     else:
-        ax[0].set_ylabel('delayed traffic (flights)')
-        ax[1].set_ylabel('delayed traffic (flights)')
+        ax[0].set_ylabel(' predicted delayed traffic (flights)')
+        ax[1].set_ylabel('predicted delayed traffic (flights)')
     plt.savefig(os.path.join(OUTPUT_DIR, job_dir, "scatterplot.png"), bbox_inches='tight')
 
 def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target, job_dir):
