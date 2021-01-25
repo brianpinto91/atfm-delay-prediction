@@ -5,14 +5,23 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 import os
 import logging
+import json
 
 # data directory containing the raw NMIR files
 NMIR_DATA_DIR = "data/NMIR"
+
+# savepath for training job outputs
+OUTPUT_DIR = "output"
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 # Import the database for AIRACs
 AIRAC_DF = pd.read_csv('data/AIRAC_dates.csv')
 AIRAC_DF['start_date'] = pd.to_datetime(AIRAC_DF['start_date'])
 AIRAC_DF['end_date'] = pd.to_datetime(AIRAC_DF['end_date'])
+
+# Import the delay categorization for evaluation
+DELAY_CATG_DF = pd.read_csv('data/delay_categorization.csv')
 
 # Define all possible Regulation types
 REGULATION_TYPES = ['C - ATC Capacity', 'W - Weather', 'S - ATC Staffing',
@@ -165,20 +174,48 @@ def get_MAPE(y_act, y_pred):
 def print_metrics(y_act_train, y_pred_train, y_act_test, y_pred_test, target):
     print('-----' + 'Results: ' + target + '-----')
     print('------Training Metrics------')
-    print('R_squared:', r2_score(y_act_train,y_pred_train))
-    print('Error % (abs):', get_MAPE(y_act_train,y_pred_train))
-    print('MAE:', mean_absolute_error(y_act_train,y_pred_train))
-    print('RMSE:', np.sqrt(mean_squared_error(y_act_train,y_pred_train)))
+    print('R_squared:', r2_score(y_act_train, y_pred_train))
+    print('Error % (abs):', get_MAPE(y_act_train, y_pred_train))
+    print('MAE:', mean_absolute_error(y_act_train, y_pred_train))
+    print('RMSE:', np.sqrt(mean_squared_error(y_act_train, y_pred_train)))
     print('------Testing Metrics------')
-    print('R_squared:', r2_score(y_act_test,y_pred_test))
-    print('Error % (abs):', get_MAPE(y_act_test,y_pred_test))
-    print('MAE:', mean_absolute_error(y_act_test,y_pred_test))
-    print('RMSE:', np.sqrt(mean_squared_error(y_act_test,y_pred_test)))
+    print('R_squared:', r2_score(y_act_test, y_pred_test))
+    print('Error % (abs):', get_MAPE(y_act_test, y_pred_test))
+    print('MAE:', mean_absolute_error(y_act_test, y_pred_test))
+    print('RMSE:', np.sqrt(mean_squared_error(y_act_test, y_pred_test)))
 
-def print_metrics_detailed(y_act_train, y_pred_train, y_act_test, y_pred_test):
-    pass
+def save_metrics_detailed(y_act_train, y_pred_train, y_act_test, y_pred_test, target, job_dir):
+    columns = ['category', 'train_days', 'test_days', 'train_MAPE', 'test_MAPE', 'train_R2', 'test_R2', 'train_RMSE', 'test_RMSE']
+    data = []
+    categories_list = DELAY_CATG_DF['category'].to_list()
+    for category in categories_list:
+        if target=="delay":
+            lower_bound = DELAY_CATG_DF.loc[DELAY_CATG_DF['category']==category]['delay_low'].item()
+            upper_bound = DELAY_CATG_DF.loc[DELAY_CATG_DF['category']==category]['delay_high'].item()
+        else:
+            lower_bound = DELAY_CATG_DF.loc[DELAY_CATG_DF['category']==category]['delayed_traffic_low'].item()
+            upper_bound = DELAY_CATG_DF.loc[DELAY_CATG_DF['category']==category]['delayed_traffic_high'].item()
+        if np.isnan(upper_bound):
+                upper_bound = np.inf
+        y_act_train_catg = y_act_train[(y_act_train >= lower_bound) & (y_act_train < upper_bound)]
+        y_pred_train_catg = y_pred_train[(y_act_train >= lower_bound) & (y_act_train < upper_bound)]
+        y_act_test_catg = y_act_test[(y_act_test >= lower_bound) & (y_act_test < upper_bound)]
+        y_pred_test_catg = y_pred_test[(y_act_test >= lower_bound) & (y_act_test < upper_bound)]
+        train_days = y_act_train_catg.shape[0]
+        test_days = y_act_test_catg.shape[0]
+        train_MAPE = get_MAPE(y_act_train_catg, y_pred_train_catg)
+        test_MAPE = get_MAPE(y_act_test_catg, y_pred_test_catg)
+        train_R2 = r2_score(y_act_train_catg, y_pred_train_catg)
+        test_R2 = r2_score(y_act_test_catg, y_pred_test_catg)
+        train_RMSE = np.sqrt(mean_squared_error(y_act_train_catg, y_pred_train_catg))
+        test_RMSE = np.sqrt(mean_squared_error(y_act_test_catg, y_pred_test_catg))
+        data.append([category, train_days, test_days, round(train_MAPE, 2), round(test_MAPE, 2),
+                     round(train_R2, 2), round(test_R2, 2),
+                     round(train_RMSE, 2), round(test_RMSE, 2)])
+    metrics_df = pd.DataFrame(data, columns=columns)
+    metrics_df.to_csv(os.path.join(OUTPUT_DIR, job_dir, target + "_" + "metrics.csv"), index=False)
 
-def save_line_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+def save_line_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, job_dir):
     fig, ax = plt.subplots(2, 1, sharex = False, figsize=(15,8))
     fig.subplots_adjust(hspace=.4)
     ax[0].plot(range(0, len(y_act_train), 1), y_act_train, range(0, len(y_act_train), 1), y_pred_train)
@@ -196,15 +233,15 @@ def save_line_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, 
     else:
         ax[0].set_ylabel('delayed traffic (flights)')
         ax[1].set_ylabel('delayed traffic (flights)')
-    plt.savefig(os.path.join(savepath, "lineplot.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(OUTPUT_DIR, job_dir, "lineplot.png"), bbox_inches='tight')
 
-def save_scatter_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+def save_scatter_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, target, job_dir):
     fig, ax = plt.subplots(2, 1, sharex = True, figsize=(8,8))
     fig.subplots_adjust(hspace=.3)
     max_value = np.max(np.concatenate((y_act_train, y_pred_train, y_act_test, y_pred_test), axis=0))
     scatter_limit = int(max_value + 0.1 * max_value)
     ax[0].plot(range(0, scatter_limit, 1),range(0, scatter_limit, 1), color='red')
-    ax[0].scatter(y_act_train, y_pred_train,alpha=0.5)
+    ax[0].scatter(y_act_train, y_pred_train, alpha=0.5)
     ax[0].set_title('Training set results: ' + target)
     ax[0].legend(['Target','Prediction'])
     ax[0].set_xlabel('Actual ATFM Delay (min)')
@@ -219,9 +256,9 @@ def save_scatter_plots(y_act_train, y_pred_train, y_act_test, y_pred_test, targe
     else:
         ax[0].set_ylabel('delayed traffic (flights)')
         ax[1].set_ylabel('delayed traffic (flights)')
-    plt.savefig(os.path.join(savepath, "scatterplot.png"), bbox_inches='tight')
+    plt.savefig(os.path.join(OUTPUT_DIR, job_dir, "scatterplot.png"), bbox_inches='tight')
 
-def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target, savepath):
+def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target, job_dir):
     header = ['actual', 'prediction']
     y_act_train = np.array(y_act_train).reshape(-1,1)
     y_pred_train = np.array(y_pred_train).reshape(-1,1)
@@ -229,14 +266,14 @@ def save_predictions(y_act_train, y_pred_train, y_act_test, y_pred_test, target,
     y_pred_test = np.array(y_pred_test).reshape(-1,1)
     train_result = pd.DataFrame(np.concatenate((y_act_train, y_pred_train), axis=1), columns = header)
     test_result = pd.DataFrame(np.concatenate((y_act_test, y_pred_test), axis=1), columns = header)
-    train_result.to_csv(os.path.join(savepath, target + "_" + "train_results.csv"))
-    test_result.to_csv(os.path.join(savepath, target + "_" + "test_results.csv"))
+    train_result.to_csv(os.path.join(OUTPUT_DIR, job_dir, target + "_" + "train_results.csv"))
+    test_result.to_csv(os.path.join(OUTPUT_DIR, job_dir, target + "_" + "test_results.csv"))
 
 def register_job_log(job_dir, y_train, y_pred_train, y_test, y_pred_test):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(message)s")
-    file_handler = logging.FileHandler('output/jobs_registry.log')
+    file_handler = logging.FileHandler(os.path.join(OUTPUT_DIR, 'jobs_registry.log'))
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     train_MAPE = get_MAPE(y_train, y_pred_train)
@@ -245,3 +282,12 @@ def register_job_log(job_dir, y_train, y_pred_train, y_test, y_pred_test):
     test_MAPE = str(round(test_MAPE, 2))
     log_msg = job_dir + " :: " + "train_MAPE" + " :: " + train_MAPE + " :: " + "test_MAPE" + " :: " + test_MAPE
     logger.info(log_msg)
+
+def create_job_dir(job_dir):
+    if not os.path.exists(os.path.join(OUTPUT_DIR, job_dir)):
+        os.makedirs(os.path.join(OUTPUT_DIR, job_dir))
+
+def save_training_file_info(train_filenames, job_dir):
+    filename = os.path.join(OUTPUT_DIR, job_dir, 'training_files_info.json')
+    with open(filename, 'w') as filehandler:
+        json.dump({'training_files_used': train_filenames}, filehandler)

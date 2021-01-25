@@ -131,15 +131,15 @@ def perform_grid_search(X_train, y_train, n_folds_cv, random_state):
     rf_model = grid_search.best_estimator_.fit(X_train, y_train)
     return rf_model
 
-def save_rf_model(rf_model, savepath):
-    joblib.dump(rf_model, os.path.join(savepath, 'rf_model.save'))
+def save_rf_model(rf_model, job_dir):
+    joblib.dump(rf_model, os.path.join(utils.OUTPUT_DIR, job_dir, 'rf_model.save'))
 
-def save_rf_model_metadata(rf_model, savepath):
-    metadata_save_path = os.path.join(savepath, "rf_model_metadata.json")
+def save_rf_model_metadata(rf_model, job_dir):
+    metadata_save_path = os.path.join(utils.OUTPUT_DIR, job_dir, "rf_model_metadata.json")
     with open(metadata_save_path, 'w') as outfile:
         json.dump(rf_model.get_params(), outfile)
 
-def train(train_filenames, target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
+def train(job_dir, train_filenames, target='delay', test_size=0.3, n_folds_cv=10, **rf_parameters):
     '''Function to train a RF model. The hyperparameters are tuned using gridsearch if enabled
     '''
     print("Reading the raw data.....", flush=True)
@@ -170,16 +170,14 @@ def train(train_filenames, target='delay', test_size=0.3, n_folds_cv=10, **rf_pa
     utils.print_metrics(y_train, y_pred_train, y_test, y_pred_test, target)
 
     print("Saving training results, metadata, and the model", flush=True)
-    cur_dir = os.getcwd()
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    job_dir = 'RF_' + timestr
-    save_path = os.path.join(cur_dir, 'output', job_dir)
-    os.makedirs(save_path)
-    utils.save_line_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
-    utils.save_scatter_plots(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
-    utils.save_predictions(y_train, y_pred_train, y_test, y_pred_test, target, save_path)
-    save_rf_model(rf_model, save_path)
-    save_rf_model_metadata(rf_model, save_path)
+    
+    utils.save_line_plots(y_train, y_pred_train, y_test, y_pred_test, target, job_dir)
+    utils.save_scatter_plots(y_train, y_pred_train, y_test, y_pred_test, target, job_dir)
+    utils.save_predictions(y_train, y_pred_train, y_test, y_pred_test, target, job_dir)
+    save_rf_model(rf_model, job_dir)
+    save_rf_model_metadata(rf_model, job_dir)
+    utils.save_training_file_info(train_filenames, job_dir)
+    utils.save_metrics_detailed(y_train, y_pred_train, y_test, y_pred_test, target, job_dir)
     utils.register_job_log(job_dir, y_train, y_pred_train, y_test, y_pred_test)
     
 if __name__ == "__main__":
@@ -190,7 +188,10 @@ if __name__ == "__main__":
     for par in ['n_estimators', 'max_features', 'max_depth', 'bootstrap']:
         if args[par]:
             rf_parameters[par] = args[par]
+    timestr = time.strftime("%Y%m%d-%H%M%S") # to make a folder where job related files are saved
+    job_dir = 'RF_' + timestr
+    utils.create_job_dir(job_dir)
     if args['custom_parameters']:
-        train(train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], **rf_parameters)
+        train(job_dir, train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], **rf_parameters)
     else:
-        train(train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], n_folds_cv=args['n_folds_cv'])
+        train(job_dir, train_filenames=args['nmir_files'], target=args['target'], test_size=args['test_size'], n_folds_cv=args['n_folds_cv'])

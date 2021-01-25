@@ -1,0 +1,5 @@
+category,delay_low,delay_high,delayed_traffic_low,delayed_traffic_high
+low,0.0,20000.0,0.0,1250.0
+nominal,20000.0,80000.0,1250.0,4650.0
+high,80000.0,,4650.0,
+overall,0.0,,0.0,
